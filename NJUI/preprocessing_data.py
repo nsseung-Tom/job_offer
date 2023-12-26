@@ -1,5 +1,5 @@
 import pandas as pd
-
+import numpy as np
 
 def load_data(entry_file_path, weekly_file_path):
     df_entry = pd.read_stata(entry_file_path)
@@ -85,10 +85,18 @@ def calculate_hourly_wage(df, hours_column, wage_column, unit_column, output_col
         reservation_wage = row[wage_column]
         reservation_unit = row[unit_column]
         
+        if pd.isnull(hours_worked_weekly):
+            # Set hours_worked_weekly as 40 if it's null
+            hours_worked_weekly = 40
+        
+        
         if hours_worked_weekly == 0:
-            # Handle cases where hours_worked_weekly is zero to avoid ZeroDivisionError
-            return None
-
+            # Set hours_worked_weekly as 40 if it's zero 
+            hours_worked_weekly = 40 
+        
+        if reservation_unit == 4 or reservation_unit == 'Hour' or reservation_unit == 'hour':  # Hourly or 'hour'
+            hourly_wage = reservation_wage
+            
         if reservation_unit in [1, 'Year', 'year']:  # Yearly or 'year'
             hourly_wage = reservation_wage / (hours_worked_weekly * 52)  # Assuming 52 weeks in a year
         elif reservation_unit in [2, 'Month', 'month']:  # Monthly
@@ -116,25 +124,25 @@ def generate_hourly_wage_columns(df):
     df3 = calculate_hourly_wage(df2, 'accepted_weekly_working_hour', 'accepted_job_wage', 'accepted_job_unit', 'accepted_job_wage_hourly')
     return df3
 
-
-def data_filtering_option(df, option):
-    if option == 'entire_data':
-        # Option 1: Using entire data from df_weekly_sum3
+# 사용 안함 
+# def data_filtering_option(df, option):
+#     if option == 'entire_data':
+#         # Option 1: Using entire data from df_weekly_sum3
         
-        final_table = df.copy()
-    elif option == 'until_first_accept':
-        # Option 2: Using data until each caseid's first 'Yes' in received_job_offers
+#         final_table = df.copy()
+#     elif option == 'until_first_accept':
+#         # Option 2: Using data until each caseid's first 'Yes' in received_job_offers
         
-        # Add a new column 'row_number' and increment only when 'acceptance_yn' is 'Yes'
-        df['row_number'] = (df['acceptance_yn'] == 'Yes').groupby(df['caseid']).cumsum() 
+#         # Add a new column 'row_number' and increment only when 'acceptance_yn' is 'Yes'
+#         df['row_number'] = (df['acceptance_yn'] == 'Yes').groupby(df['caseid']).cumsum() 
         
-        # row_number == 0이거나, row_number = 1 이고, acceptance_yn = 'Yes'인 애들만 남기기
-        final_table = df[(df['row_number'] == 0) | ((df['row_number'] == 1) & (df['acceptance_yn'] == 'Yes'))]
-    else:
-        print("Invalid option! Please provide 'option_1' or 'option_2'")
-        final_table = pd.DataFrame()  # Return an empty DataFrame for invalid option
+#         # row_number == 0이거나, row_number = 1 이고, acceptance_yn = 'Yes'인 애들만 남기기
+#         final_table = df[(df['row_number'] == 0) | ((df['row_number'] == 1) & (df['acceptance_yn'] == 'Yes'))]
+#     else:
+#         print("Invalid option! Please provide 'option_1' or 'option_2'")
+#         final_table = pd.DataFrame()  # Return an empty DataFrame for invalid option
     
-    return final_table
+#     return final_table
 
 
 
@@ -170,23 +178,33 @@ def transform_acceptance(df, option):
     final_df = final_df[final_df['acceptance_yn'].notna()]
     return final_df
 
-
-def generate_final_four_tables(df_hourly_wage): 
-    options = [('entire_data', 'exclude_dontknow'), ('entire_data', 'include_dontknow'), ('until_first_accept', 'exclude_dontknow'), ('until_first_accept', 'include_dontknow')]
-    dataframes = []
-    for i, (opt1, opt2) in enumerate(options):
-        option_stage_1 = data_filtering_option(df_hourly_wage.copy(), opt1)
-        final_data = transform_acceptance(option_stage_1, opt2)
-        dataframes.append((final_data, opt1, opt2))  # Including options with dataframes
-    return dataframes
-
-def save_dataframes_as_csv(dataframes):
-    for i, (df, opt1, opt2) in enumerate(dataframes, start=1):
-        file_name = f'preprocessed{i}_{opt1}_{opt2}.csv'
-        df.to_csv(f'data/{file_name}', index=False)
-        print(f'Final table {i} saved as {file_name}')
         
-        
+# edit for last modified code 
+def exclude_dual_job(df_hourly_wage): 
+    filtered_df = df_hourly_wage[df_hourly_wage['previous_wage_hourly'].notnull() & df_hourly_wage['job_offer_wage_hourly'].notnull()& df_hourly_wage['acceptance_yn'].notnull()]
+    # Grouping by 'caseid' and counting occurrences of 'yes' in 'acceptance_yn'
+    yes_counts = filtered_df[filtered_df['acceptance_yn'] == 'Yes'].groupby('caseid')['acceptance_yn'].count()
+
+    # Filtering caseids with two or more 'yes' occurrences
+    caseids_with_multiple_yes = yes_counts[yes_counts >= 2].index.tolist()
+    exclude_df = filtered_df[~filtered_df['caseid'].isin(caseids_with_multiple_yes)]
+    return exclude_df 
+
+# 사용 안함
+# def generate_final_four_tables(df_hourly_wage): 
+#     options = [('entire_data', 'exclude_dontknow'), ('entire_data', 'include_dontknow'), ('until_first_accept', 'exclude_dontknow'), ('until_first_accept', 'include_dontknow')]
+#     dataframes = []
+#     for i, (opt1, opt2) in enumerate(options):
+#         option_stage_1 = data_filtering_option(df_hourly_wage.copy(), opt1)
+#         final_data = transform_acceptance(option_stage_1, opt2)
+#         dataframes.append((final_data, opt1, opt2))  # Including options with dataframes
+#     return dataframes
+
+# def save_dataframes_as_csv(dataframes):
+#     for i, (df, opt1, opt2) in enumerate(dataframes, start=1):
+#         file_name = f'preprocessed{i}_{opt1}_{opt2}.csv'
+#         df.to_csv(f'data/{file_name}', index=False)
+#         print(f'Final table {i} saved as {file_name}')
 
 
 # Preprocessing the data with functions above. 
@@ -194,19 +212,19 @@ entry_file_path = 'data/entry.dta'
 weekly_file_path = 'data/weekly20150129.dta'
 df_entry, df_weekly = load_data(entry_file_path, weekly_file_path)
 df_weekly = rename_columns(df_weekly)
-df_weekly_filtered = filter_data(df_weekly)
-df_weekly_sum = generate_previous_reservation_wage(df_weekly_filtered)
-df_hourly_wage = generate_hourly_wage_columns(df_weekly_sum)
-final_dfs = generate_final_four_tables(df_hourly_wage)
-save_dataframes_as_csv(final_dfs)
+df_weekly_sum = generate_previous_reservation_wage(df_weekly)
+df_weekly_filtered = filter_data(df_weekly_sum)
+df_hourly_wage = generate_hourly_wage_columns(df_weekly_filtered)
+exclude_df = exclude_dual_job(df_hourly_wage)
 
 
-# For data check
-# final_df1 = final_tables[0][0]
-# final_df2 = final_tables[1][0]
-# final_df3 = final_tables[2][0]
-# final_df4 = final_tables[3][0]
-# print(len(final_df1))
-# print(len(final_df2))
-# print(len(final_df3))
-# print(len(final_df4))
+# Generate final preprocessed tables 
+exclude_dk = transform_acceptance(exclude_df, 'exclude_dontknow')
+include_dk = transform_acceptance(exclude_df, 'include_dontknow')
+
+# Save the final tables 
+include_dk.to_csv('data/preprocessed_include_dk.csv', index=False)
+exclude_dk.to_csv('data/preprocessed_exclude_dk.csv', index=False)
+
+# final_dfs = generate_final_four_tables(df_hourly_wage)
+# save_dataframes_as_csv(final_dfs)

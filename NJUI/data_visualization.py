@@ -41,6 +41,7 @@ def group_data(filtered_df, interval_size):
 
     return grouped_data
 
+
 def save_line_graph(grouped_data, filename_prefix, result_folder):
     plt.figure(figsize=(12, 8))  # Larger figure size
 
@@ -60,28 +61,10 @@ def save_line_graph(grouped_data, filename_prefix, result_folder):
     plt.close()  # Close the plot to avoid display in the notebook
     print(f"Saved line graph for {filename_prefix}")
     
-def interval_array_to_string(interval_array):
-    # Convert IntervalArray to string representation
-    interval_str = interval_array.astype(str)
-    return interval_str
-
-def save_table_csv(grouped_data, filename_prefix, result_folder):
-    # Convert IntervalArray columns to strings
-    grouped_data_str = grouped_data.apply(lambda col: interval_array_to_string(col) if col.dtype.name == 'IntervalArray' else col)
-    # Generate the output filename for CSV
-    csv_filename = os.path.join(result_folder, f"{filename_prefix}_grouped_data.csv")
-    # Save grouped_data as a CSV file
-    grouped_data_str.to_csv(csv_filename, index=False)
-    print(f"Saved grouped data as CSV file for {filename_prefix}")
-
-
-
-
-# Add quantile bins graph functions 
 # Generate quantile bins
 def group_data_quantile_bins(filtered_df):
     # Calculate quantiles for binning
-    quantiles = [i * 0.05 for i in range(1, 21)]  # 20 quantiles from 5th to 100th percentile
+    quantiles = [i * 0.1 for i in range(1, 11)]  # 10 quantiles from 10th to 100th percentile
 
     # Create quantile bins based on wage_difference
     bins = filtered_df['wage_difference'].quantile(quantiles)
@@ -121,14 +104,31 @@ def save_line_graph_quantile_bins(grouped_data, filename_prefix, result_folder):
     plt.close()
     print(f"Saved line graph for {filename_prefix}")
 
+    
+def interval_array_to_string(interval_array):
+    # Convert IntervalArray to string representation
+    interval_str = interval_array.astype(str)
+    return interval_str
+
+def save_table_csv(grouped_data, filename_prefix, result_folder):
+    # Convert IntervalArray columns to strings
+    grouped_data_str = grouped_data.apply(lambda col: interval_array_to_string(col) if col.dtype.name == 'IntervalArray' else col)
+    # Generate the output filename for CSV
+    csv_filename = os.path.join(result_folder, f"{filename_prefix}_grouped_data.csv")
+    # Save grouped_data as a CSV file
+    grouped_data_str.to_csv(csv_filename, index=False)
+    print(f"Saved grouped data as CSV file for {filename_prefix}")
 
 # List of file paths
-file_paths = [
-    'data/preprocessed1_entire_data_exclude_dontknow.csv', 
-    'data/preprocessed2_entire_data_include_dontknow.csv',
-    'data/preprocessed3_until_first_accept_exclude_dontknow.csv',
-    'data/preprocessed4_until_first_accept_include_dontknow.csv'
-]
+# file_paths = [
+#     'data/preprocessed1_entire_data_exclude_dontknow.csv', 
+#     'data/preprocessed2_entire_data_include_dontknow.csv',
+#     'data/preprocessed3_until_first_accept_exclude_dontknow.csv',
+#     'data/preprocessed4_until_first_accept_include_dontknow.csv'
+# ]
+
+# List of file paths
+file_paths = ['data/preprocessed_exclude_dk.csv', 'data/preprocessed_include_dk.csv']
 
 # Folder name for saving results
 result_folder = 'result'
@@ -141,13 +141,13 @@ if not os.path.exists(result_folder):
 for file_path in file_paths:
     # Load the DataFrame and process outliers
     df = process_outliers(file_path) 
-    interval_size = 0.2 # Set your interval size here
+    #interval_size = 0.1 # Set your interval size here
     # Group the data
-    grouped_data = group_data(df, interval_size)
+    grouped_data = group_data_quantile_bins(df)
 
     # Extract filename without extension
     filename_prefix = os.path.splitext(os.path.basename(file_path))[0]
     
     # Save line graph and table CSV in the 'result' folder
-    save_line_graph(grouped_data, filename_prefix, result_folder)
+    save_line_graph_quantile_bins(grouped_data, filename_prefix, result_folder)
     save_table_csv(grouped_data, filename_prefix, result_folder)
