@@ -76,6 +76,52 @@ def save_table_csv(grouped_data, filename_prefix, result_folder):
 
 
 
+
+# Add quantile bins graph functions 
+# Generate quantile bins
+def group_data_quantile_bins(filtered_df):
+    # Calculate quantiles for binning
+    quantiles = [i * 0.05 for i in range(1, 21)]  # 20 quantiles from 5th to 100th percentile
+
+    # Create quantile bins based on wage_difference
+    bins = filtered_df['wage_difference'].quantile(quantiles)
+    
+    # Drop duplicate edges
+    bins = bins[~bins.duplicated()]
+
+    # Bin the wage_difference column using the quantile bins
+    filtered_df['wage_diff_quantile_bin'] = pd.cut(filtered_df['wage_difference'], bins=bins, include_lowest=True)
+
+    # Calculate average offer within each quantile bin
+    grouped_data = filtered_df.groupby('wage_diff_quantile_bin').agg(
+        avg_offer=('wage_difference', 'mean'),
+        total_count=('acceptance_yn', 'count'),
+        accept_count=('acceptance_yn', lambda x: (x == 'y').sum())
+    ).reset_index()
+
+    grouped_data['acceptance_ratio_per_interval'] = grouped_data['accept_count'] / grouped_data['total_count']
+    return grouped_data
+
+# Graph for quantile bins only 
+def save_line_graph_quantile_bins(grouped_data, filename_prefix, result_folder):
+    plt.figure(figsize=(12, 8))
+
+    # Plotting the line graph
+    x_values = grouped_data['avg_offer']
+    y_values = grouped_data['acceptance_ratio_per_interval']
+    plt.plot(x_values, y_values, marker='o', linestyle='-', color='skyblue', markersize=8)
+    plt.xlabel('Average Offer within Quantile Bin')
+    plt.ylabel('Acceptance Ratio')
+    plt.title(f'Acceptance Ratio based on Average Offer within Quantile Bins\nFile: {filename_prefix}')
+    plt.tight_layout()
+
+    # Save the plot as an image file
+    plot_filename = os.path.join(result_folder, f"{filename_prefix}_graph.jpg")
+    plt.savefig(plot_filename, bbox_inches='tight', pad_inches=0.5)
+    plt.close()
+    print(f"Saved line graph for {filename_prefix}")
+
+
 # List of file paths
 file_paths = [
     'data/preprocessed1_entire_data_exclude_dontknow.csv', 
