@@ -64,7 +64,7 @@ def save_line_graph(grouped_data, filename_prefix, result_folder):
 # Generate quantile bins
 def group_data_quantile_bins(filtered_df):
     # Calculate quantiles for binning
-    quantiles = [-0.1+ i * 0.1 for i in range(1, 11)]  # 10 quantiles from 10th to 100th percentile
+    quantiles = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]  # 10 quantiles from 5th to 100th percentile
 
     # Create quantile bins based on wage_difference
     bins = filtered_df['wage_difference'].quantile(quantiles)
